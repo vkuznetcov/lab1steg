@@ -1,0 +1,114 @@
+import cv2
+import numpy
+
+# GREEN-2 XOR RED-1_____BLUE_____3.12
+red_coef = 77 / 256
+green_coef = 150 / 256
+blue_coef = 29 / 256
+
+green_bit_place_number = 2
+red_bit_place_number = 1
+
+green_significance = green_coef * green_bit_place_number
+red_significance = red_coef * red_bit_place_number
+
+sigma = 4 + 4 * (15 % 3)
+noise = numpy.random.randint(0, sigma - 1, size=(512, 512)).astype(numpy.uint8)
+
+
+def get_color_channel(image, channel):
+    blue, green, red = cv2.split(image)
+    if channel == 'blue':
+        return blue
+    elif channel == 'red':
+        return red
+    elif channel == 'green':
+        return green
+
+
+def get_bit_place(image, place_num):
+    return image & (2 ** (place_num - 1))
+
+
+def ies4_encode(original_image, watermark_image):
+    blue_channel = get_color_channel(original_image, 'blue')
+    green_channel = get_color_channel(original_image, 'green')
+    red_channel = get_color_channel(original_image, 'red')
+    blue_channel_with_watermark = ((blue_channel // (2 * sigma)) * 2 * sigma + get_color_channel(watermark_image,
+                                                                                                 'blue') * sigma + noise)
+    merged = cv2.merge([blue_channel_with_watermark, green_channel, red_channel])
+    return blue_channel_with_watermark, merged
+
+def ies4_decode(image_with_watermark, original_image):
+    channel_with_watermark = get_color_channel(image_with_watermark, 'blue')
+    original_channel = get_color_channel(original_image, 'blue')
+    return channel_with_watermark - (original_channel // (2 * sigma) * 2 * sigma) - noise
+
+
+def ies1_decode(encode_image, first_bit_place_number, second_bit_place_number
+                , first_color_channel_string, second_color_channel_string):
+    # second_channel = get_color_channel(baboon, second_color_channel_string)
+    # second_bit_place = get_bit_place(second_channel, second_bit_place_number)
+
+    first_channel = get_color_channel(encode_image, first_color_channel_string)
+    first_bit_place = get_bit_place(first_channel, first_bit_place_number)
+
+    return first_bit_place * 255
+
+
+def ies1_encode(original_image, watermark_image, color_channel_string, bit_plate_number,
+                second_channel_string, second_bit_plate_number):
+    clear_bit_place = 255 - (2 ** (bit_plate_number - 1))
+    prepared_watermark_colored = ((watermark_image / 255) * (2 ** (bit_plate_number - 1))).astype(numpy.uint8)
+    binary_watermark = get_color_channel(prepared_watermark_colored, color_channel_string)
+    # if clear_bit_place == 254: 254 = 11111110, зануляем 1-ю битовую плоскость
+    channel_with_empty_bit_place = get_color_channel(original_image, color_channel_string) & clear_bit_place
+    channel_with_watermark = channel_with_empty_bit_place | binary_watermark
+
+    second_channel = get_color_channel(baboon, second_channel_string)
+    second_bit_place = get_bit_place(second_channel, second_bit_plate_number)
+    channel_result = second_bit_place ^ channel_with_watermark
+
+    r = get_color_channel(baboon, 'red')
+    g = get_color_channel(baboon, 'green')
+    b = get_color_channel(baboon, 'blue')
+
+    if color_channel_string == 'blue':
+        return channel_result, cv2.merge([channel_result, g, r])
+    if color_channel_string == 'red':
+        return channel_result, cv2.merge([b, g, channel_result])
+    if color_channel_string == 'green':
+        return channel_result, cv2.merge([b, channel_result, r])
+
+
+if __name__ == '__main__':
+    baboon = cv2.imread('baboon.tif')
+    watermark = cv2.imread('ornament.tif')
+    result_ies1 = None
+    decoded_ies1 = None
+    channel_with_watermark_ies1 = None
+
+    result_ies4 = None
+    decoded_ies4 = None
+    channel_with_watermark_ies4 = None
+
+    if red_significance > green_significance:
+        channel_with_watermark_ies1, result_ies1 = ies1_encode(baboon, watermark, 'green', green_bit_place_number, 'red',
+                                  red_bit_place_number)
+        decoded_ies1 = ies1_decode(result_ies1, green_bit_place_number, red_bit_place_number, 'green', 'red')
+    else:
+        channel_with_watermark_ies1, result_ies1 = ies1_encode(baboon, watermark, 'red', red_bit_place_number, 'green',
+                                  green_bit_place_number)
+        decoded_ies1 = ies1_decode(result_ies1, red_bit_place_number, green_bit_place_number, 'red', 'green')
+
+    channel_with_watermark_ies4, result_ies4 = ies4_encode(baboon, watermark)
+    decoded_ies4 = ies4_decode(result_ies4, baboon)
+
+    cv2.imshow('encoded ies1', result_ies1)
+    cv2.imshow('channel ies1', channel_with_watermark_ies1)
+    cv2.imshow('watermark ies1', decoded_ies1)
+    cv2.waitKey(0)
+    cv2.imshow('encoded ies4', result_ies4)
+    cv2.imshow('channel ies4', channel_with_watermark_ies4)
+    cv2.imshow('watermark ies4', decoded_ies4)
+    cv2.waitKey(0)
