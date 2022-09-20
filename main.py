@@ -53,40 +53,40 @@ def ies4_decode(image_with_watermark, original_image):
 
 
 # Watermark decoding method 1
-def ies1_decode(encode_image, first_bit_place_number, second_bit_place_number
-                , first_color_channel_string, second_color_channel_string):
-    # second_channel = get_color_channel(baboon, second_color_channel_string)
-    # second_bit_place = get_bit_place(second_channel, second_bit_place_number)
+def ies1_decode(encode_image, first_bit_plain, second_bit_plain
+                , first_color_channel, second_color_channel):
+    # second_channel = get_color_channel(baboon, second_color_channel)
+    # second_bit_plain = get_bit_place(second_channel, second_bit_place_number)
 
-    first_channel = get_color_channel(encode_image, first_color_channel_string)
-    first_bit_place = get_bit_plane(first_channel, first_bit_place_number)
+    first_channel = get_color_channel(encode_image, first_color_channel)
+    first_bit_place = get_bit_plane(first_channel, first_bit_plain)
 
     return first_bit_place * 255
 
 
 # Image embedding method 1
-def ies1_encode(original_image, watermark_image, color_channel_string, bit_plate_number,
-                second_channel_string, second_bit_plate_number):
-    clear_bit_place = 255 - (2 ** (bit_plate_number - 1))
-    prepared_watermark_colored = ((watermark_image / 255) * (2 ** (bit_plate_number - 1))).astype(numpy.uint8)
-    binary_watermark = get_color_channel(prepared_watermark_colored, color_channel_string)
+def ies1_encode(original_image, watermark_image, first_color_channel, first_bit_plain,
+                second_color_channel, second_bit_plain):
+    clear_bit_place = 255 - (2 ** (first_bit_plain - 1))
+    watermark_bit_plain = ((watermark_image / 255) * (2 ** (first_bit_plain - 1))).astype(numpy.uint8)
+    binary_watermark = get_color_channel(watermark_bit_plain, first_color_channel)
     # if clear_bit_place == 254: 254 = 11111110, зануляем 1-ю битовую плоскость
-    channel_with_empty_bit_place = get_color_channel(original_image, color_channel_string) & clear_bit_place
-    channel_with_watermark = channel_with_empty_bit_place | binary_watermark
+    channel_with_empty_bit_plain = get_color_channel(original_image, first_color_channel) & clear_bit_place
+    channel_with_watermark = channel_with_empty_bit_plain | binary_watermark
 
-    second_channel = get_color_channel(baboon, second_channel_string)
-    second_bit_place = get_bit_plane(second_channel, second_bit_plate_number)
+    second_channel = get_color_channel(original_image, second_color_channel)
+    second_bit_place = get_bit_plane(second_channel, second_bit_plain)
     channel_result = second_bit_place ^ channel_with_watermark
 
-    r = get_color_channel(baboon, 'red')
-    g = get_color_channel(baboon, 'green')
-    b = get_color_channel(baboon, 'blue')
+    r = get_color_channel(original_image, 'red')
+    g = get_color_channel(original_image, 'green')
+    b = get_color_channel(original_image, 'blue')
 
-    if color_channel_string == 'blue':
+    if first_color_channel == 'blue':
         return channel_result, cv2.merge([channel_result, g, r])
-    if color_channel_string == 'red':
+    if first_color_channel == 'red':
         return channel_result, cv2.merge([b, g, channel_result])
-    if color_channel_string == 'green':
+    if first_color_channel == 'green':
         return channel_result, cv2.merge([b, channel_result, r])
 
 
@@ -116,6 +116,7 @@ if __name__ == '__main__':
     channel_with_watermark_ies4, result_ies4 = ies4_encode(baboon, watermark)
     decoded_ies4 = ies4_decode(result_ies4, baboon)
 
+# Images showing
     cv2.imshow('encoded ies1', result_ies1)
     cv2.imshow('channel ies1', channel_with_watermark_ies1)
     cv2.imshow('watermark ies1', decoded_ies1)
