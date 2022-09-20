@@ -55,14 +55,13 @@ def ies4_decode(image_with_watermark, original_image):
 # Watermark decoding method 1
 def ies1_decode(encode_image, first_bit_plain, second_bit_plain
                 , first_color_channel, second_color_channel):
-    # second_channel = get_color_channel(baboon, second_color_channel)
-    # second_bit_plain = get_bit_place(second_channel, second_bit_place_number)
+    second_channel = get_color_channel(baboon, second_color_channel)
+    second_bit_plain = get_bit_plane(second_channel, second_bit_plain)
 
     first_channel = get_color_channel(encode_image, first_color_channel)
     first_bit_place = get_bit_plane(first_channel, first_bit_plain)
 
-    return first_bit_place * 255
-
+    return get_bit_plane((first_bit_place ^ second_bit_plain), first_bit_plain) * 255
 
 # Image embedding method 1
 def ies1_encode(original_image, watermark_image, first_color_channel, first_bit_plain,
@@ -70,7 +69,7 @@ def ies1_encode(original_image, watermark_image, first_color_channel, first_bit_
     clear_bit_place = 255 - (2 ** (first_bit_plain - 1))
     watermark_bit_plain = ((watermark_image / 255) * (2 ** (first_bit_plain - 1))).astype(numpy.uint8)
     binary_watermark = get_color_channel(watermark_bit_plain, first_color_channel)
-    # if clear_bit_place == 254: 254 = 11111110, зануляем 1-ю битовую плоскость
+
     channel_with_empty_bit_plain = get_color_channel(original_image, first_color_channel) & clear_bit_place
     channel_with_watermark = channel_with_empty_bit_plain | binary_watermark
 
@@ -101,7 +100,7 @@ if __name__ == '__main__':
     decoded_ies4 = None
     channel_with_watermark_ies4 = None
 
-# Deciding what bit plane we are going to embed watermark for 1 method
+    # Deciding what bit plane we are going to embed watermark for 1 method
     if red_significance > green_significance:
         channel_with_watermark_ies1, result_ies1 = ies1_encode(baboon, watermark, 'green', green_bit_plane_number,
                                                                'red',
@@ -112,16 +111,15 @@ if __name__ == '__main__':
                                                                green_bit_plane_number)
         decoded_ies1 = ies1_decode(result_ies1, red_bit_plane_number, green_bit_plane_number, 'red', 'green')
 
-# Results for 2 method
+    # Results for 2 method
     channel_with_watermark_ies4, result_ies4 = ies4_encode(baboon, watermark)
     decoded_ies4 = ies4_decode(result_ies4, baboon)
 
-# Images showing
+    # Images showing
     cv2.imshow('encoded ies1', result_ies1)
     cv2.imshow('channel ies1', channel_with_watermark_ies1)
     cv2.imshow('watermark ies1', decoded_ies1)
     cv2.waitKey(0)
-
 
     cv2.imshow('encoded ies4', result_ies4)
     cv2.imshow('channel ies4', channel_with_watermark_ies4)
